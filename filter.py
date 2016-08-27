@@ -29,15 +29,11 @@ import numpy as np
 from multiprocessing import Pool
 from lib.geo import geoclass as geo
 
-# globals
-FNAME = './sample_pts_prep/sample_pts.csv'
-SNAME = './sample_pts_prep/filtered_pts.csv'
-
 # filter distance in meters (radius)
 MIN_DISTANCE = 1500
 
 
-def read_points():
+def read_points(fname):
 	"""
 		Import file structure:
 			Source structure: csv file, having variable names in the first row and
@@ -46,7 +42,7 @@ def read_points():
 	"""
 	ret = []
 	
-	with open(FNAME, 'r') as fp:
+	with open(fname, 'r') as fp:
 		fp.readline()
 		for ln in fp:
 			# ok, don't have enough time for generic solution
@@ -58,11 +54,11 @@ def read_points():
 	return ret
 
 
-def save_points(pts_lst, selected):
+def save_points(fname, pts_lst, selected):
 	"""
 		Quick save of the results
 	"""
-	with open(SNAME, 'w') as fp:
+	with open(fname, 'w') as fp:
 		fp.write('y;x;id\n')
 		for i in selected:
 			fp.write(';'.join([str(x) for x in pts_lst[i]]))
@@ -158,7 +154,30 @@ def pop_edge_node(node_lst, adj_mat):
 
 if __name__ == '__main__':
 
-	pts_lst = read_points()
+	if len(sys.argv) != 4:
+		# just a quick debug line printout
+		if len(sys.argv) == 2:
+			print('./filter.py sample_pts.csv filtered_pts.csv 1500')
+		else:
+			print('Usage:')
+			print('python filter.py input_ds output_ds constraining_distance(m)')
+			print('eg:')
+			print('python filter.py input.csv output.csv 1500')
+		sys.exit()
+
+	# globals
+	FNAME = sys.argv[1]
+	SNAME = sys.argv[2]
+
+	# filter distance in meters (radius)
+	try:
+		MIN_DISTANCE = float(sys.argv[3])
+	except:
+		print('Incorrect distance value')
+		sys.exit()
+
+
+	pts_lst = read_points(FNAME)
 	adj_mat = create_adj_matrix(pts_lst)
 
 	# print(np.sum(adj_mat))
@@ -202,7 +221,6 @@ if __name__ == '__main__':
 	while False in processed:
 
 		node = unselected[processed.index(False)]
-		# node = 92
 		path = create_path(node, adj_mat, [node])
 
 		# Debug code, distances and degree!
@@ -235,6 +253,6 @@ if __name__ == '__main__':
 	# and finally process the results
 	# print(selected)
 	print('Total number of selected points {}, number of discarded points {}'.format(len(selected), len(pts_lst) - len(selected)))
-	save_points(pts_lst, selected)
+	save_points(SNAME, pts_lst, selected)
 	print('Points have been saved to file ' + SNAME)
 	print('Done :)')

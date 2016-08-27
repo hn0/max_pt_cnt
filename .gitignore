@@ -1,3 +1,4 @@
 adj_mat.csv
 *.m
 sample_pts_prep
+filtered_pts.csv
