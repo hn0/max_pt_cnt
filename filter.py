@@ -2,7 +2,7 @@
 """
 	Filter points
 	Objective of this script is to optimize for the highest point count given restriction that 
-		there is constraint on minimal spatial distance among any tow points 
+		there is constraint on minimal spatial distance between any tow points 
 
 
 	Algorithm overview:
@@ -16,10 +16,11 @@
 
 		In order to optimize for performance only paths among nodes possessing edges were calculated and
 			each path was processed separately.
-
+			
 
 	Author:  Hrvoje Novosel<hrvojedotnovose@gmail.com>
 	Created: Tue Aug 16 22:36:03 CEST 2016
+	Tested and developed using Python 3.5.1 (Darwin Kernel Version 15.3.0 x86_64)
 
 """
 
@@ -67,12 +68,11 @@ def save_points(fname, pts_lst, selected):
 
 def calculate_distances(vals):
 	"""
-		TODO: write something!
+		Calculates haversine distance between two points
 	"""
 	pt_a = vals[1]
 	# has every other pts!
 	pts  = vals[2]
-	# and return only distances of the neighbours
 	ret_lst = []
 
 	for i in range(len(pts)):
@@ -80,7 +80,7 @@ def calculate_distances(vals):
 				pt_a[0], pt_a[1], \
 				pts[i][0], pts[i][1]
 			)
-		if dist < 2 * MIN_DISTANCE:
+		if dist < MIN_DISTANCE:
 			ret_lst.append(( (i * 2 + 1), dist))
 
 	return (vals[0], ret_lst)
@@ -88,18 +88,13 @@ def calculate_distances(vals):
 
 def create_adj_matrix(pts_list):
 	"""
-		Creates adjecency matrix
-		TODO: write desc
-		distance in meters will be ok, so int matrix will suite fine
+		Calculates laplacian adjacency matrix, placing distance only to edges in violation of min distance constraint
 	"""
 	adj_mat = np.zeros([len(pts_lst), len(pts_lst)], dtype=np.int)
 
 	# lets go parallel
 	ivals = range(0, len(pts_list), 2)
 	jvals = [pts_list[x] for x in range(1, len(pts_list), 2)]
-
-	# a = [(x, pts_list[x], jvals) for x in ivals]
-	# print(a)
 	
 	pool = Pool(10)
 	prog = 0
@@ -111,7 +106,7 @@ def create_adj_matrix(pts_list):
 				j = dist[0]
 				adj_mat[i][j] = dist[1]
 				adj_mat[j][i] = dist[1]
-		# usefull progress message
+		# useful progress message
 		prog_precent = prog/len(ivals) * 100
 		if prog_precent % 10 == 0:
 			sys.stdout.write('\rCreating distance matrix: {}%'.format(prog_precent))
@@ -125,7 +120,6 @@ def create_adj_matrix(pts_list):
 def create_path(node, adj_mat, path):
 	"""
 		Construct path for all nodes returning number of elements in the path?
-		return node ids constructing the path!
 	"""
 	# recursive build up of path
 	# how graph is undirectional order doesn't matter
@@ -160,7 +154,7 @@ if __name__ == '__main__':
 			print('./filter.py sample_pts.csv filtered_pts.csv 1500')
 		else:
 			print('Usage:')
-			print('python filter.py input_ds output_ds constraining_distance(m)')
+			print('python filter.py input_ds output_ds constraining_distance (m)')
 			print('eg:')
 			print('python filter.py input.csv output.csv 1500')
 		sys.exit()
@@ -180,11 +174,6 @@ if __name__ == '__main__':
 	pts_lst = read_points(FNAME)
 	adj_mat = create_adj_matrix(pts_lst)
 
-	# print(np.sum(adj_mat))
-	# print(adj_mat)
-	# save the matrix
-	# np.savetxt('adj_mat.csv', adj_mat)
-	# print('Import done')
 
 	# split matrix in two parts, ones without any point in proximity and ones for the graph
 	selected   = [] # list of selected object ids
@@ -197,39 +186,16 @@ if __name__ == '__main__':
 
 
 	print('Number no constraints infringement selected nodes: {}'.format(len(selected)))
-	# next would be to sort remaining pointers
-	# print(unselected)
-	# take into consideration weights (distances) and degree
-	# TODO: probably not needed
-	# unselected = sorted( unselected, key=lambda x: np.sum(adj_mat[x]) * np.count_nonzero(adj_mat[x]) )
-	# print(unselected)
 
-	# better sorting schema would be on degree 
-	# TODO: think about it, shouldn't sorting be desc, what is optimal approach first high degree or first low degree
+	# better solution sorting schema would be on degree 
 	unselected = sorted( unselected, key=lambda x: np.count_nonzero(adj_mat[x]) )
 
-	# lets construct paths among remain nodes
-	# and at the same time process the paths
-
-	# Debug printout
-	# print(adj_mat[1659][1603])
-	# exit()
-	# for i in unselected:
-	# 	print("{}. {}".format(i, np.count_nonzero(adj_mat[i])))
 
 	processed = [False for _ in range(len(unselected))]
 	while False in processed:
 
 		node = unselected[processed.index(False)]
 		path = create_path(node, adj_mat, [node])
-
-		# Debug code, distances and degree!
-		# print(path)
-		# for p1 in path:
-		# 	print("{}. -> {}".format(p1, np.count_nonzero(adj_mat[p1])))
-			# for p2 in path:
-			# 	if p1 != p2:
-					# print("{}. -> {}. = {}".format(p1, p2, adj_mat[p1][p2]))
 
 		# sort found path according to the node degree
 		degree_sorted = sorted(path, key=lambda x: unselected.index(x) * -1)
@@ -251,7 +217,6 @@ if __name__ == '__main__':
 		# break
 		
 	# and finally process the results
-	# print(selected)
 	print('Total number of selected points {}, number of discarded points {}'.format(len(selected), len(pts_lst) - len(selected)))
 	save_points(SNAME, pts_lst, selected)
 	print('Points have been saved to file ' + SNAME)
